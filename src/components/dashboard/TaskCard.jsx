@@ -1,6 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { ProjectContext } from '../../context/ProjectContext';
-import CompleteSubtaskModal from '../modals/CompleteSubtaskModal'; 
+import CompleteSubtaskModal from '../modals/CompleteSubTaskModal'; 
 
 const TaskCard = ({ task, colId }) => {
   const { activeProject, toggleSubtask, addSubtask, completeSubtask } = useContext(ProjectContext);

@@ -32,7 +32,7 @@ const AddProjectModal = ({ onClose }) => {
           onChange={e => setName(e.target.value)} 
         />
         
-        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', marginBottom: '20px' }}>
+        <div className="modal-deadline-row">
           <div id="project-deadline-tag">Deadline: </div>
           {/* Relying on #project-deadline class */}
           <input 
