@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { initialProjects } from '../data/initialData';
+import { normalizeDeadlineNotBeforeToday } from '../utils/date';
 
 export const ProjectContext = createContext();
 
@@ -48,11 +49,21 @@ export const ProjectProvider = ({ children }) => {
 
   // --- ACTIONS WITH ACTIVITY LOGGING ---
   const addProject = (name, deadline) => {
+    const safeDeadline = normalizeDeadlineNotBeforeToday(deadline);
     const newLog = { id: Date.now(), text: `Project created.`, date: new Date().toLocaleString() };
-    setProjects([...projects, { 
-      id: `p${Date.now()}`, name, deadline, reminded: false, planning: [], progress: [], done: [],
-      activityLog: [newLog]
-    }]);
+    setProjects((prev) => [
+      ...prev,
+      {
+        id: `p${Date.now()}`,
+        name,
+        deadline: safeDeadline,
+        reminded: false,
+        planning: [],
+        progress: [],
+        done: [],
+        activityLog: [newLog],
+      },
+    ]);
   };
 
   const addTask = (projectId, title, description) => {
