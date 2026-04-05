@@ -1,4 +1,4 @@
-/** Today's calendar date in local timezone as YYYY-MM-DD (matches <input type="date">). */
+
 export function todayLocalYmd() {
   const d = new Date();
   const y = d.getFullYear();
@@ -7,7 +7,6 @@ export function todayLocalYmd() {
   return `${y}-${m}-${day}`;
 }
 
-/** If a deadline string is set and is before today, return today; otherwise unchanged. */
 export function normalizeDeadlineNotBeforeToday(deadline) {
   if (deadline == null || deadline === '') return deadline;
   const t = todayLocalYmd();

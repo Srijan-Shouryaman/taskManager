@@ -1,56 +1,115 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useRef } from 'react';
 import { initialProjects } from '../data/initialData';
 import { normalizeDeadlineNotBeforeToday } from '../utils/date';
 
 export const ProjectContext = createContext();
 
 export const ProjectProvider = ({ children }) => {
-  const [projects, setProjects] = useState(initialProjects);
+  
+  // 1. LAZY INITIALIZATION: Check local storage on first load
+  const [projects, setProjects] = useState(() => {
+    try {
+      const savedProjects = localStorage.getItem('prism_app_projects');
+      if (savedProjects) {
+        return JSON.parse(savedProjects);
+      }
+    } catch (error) {
+      console.error("Failed to parse local storage data:", error);
+    }
+    return initialProjects; 
+  });
+
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('prism_app_theme') || 'light';
+  });
+
+  // Hydration flag to prevent server-side rendering flashes
+  const [isMounted, setIsMounted] = useState(false);
+
   const [currentView, setCurrentView] = useState('home');
   const [activeProjectId, setActiveProjectId] = useState(null);
-  
-  // State for the History View
   const [activeHistoryProjectId, setActiveHistoryProjectId] = useState(null); 
-  
-  const [theme, setTheme] = useState('light');
   const [notification, setNotification] = useState(null);
 
   const activeProject = projects.find(p => p.id === activeProjectId);
 
+  // --- REFS: To manage state safely inside intervals and track sessions ---
+  const projectsRef = useRef(projects);
+  const notificationTimerRef = useRef(null);
+  const remindedThisSessionRef = useRef(new Set()); 
+
+  // Keep our projectsRef updated with the latest data
   useEffect(() => {
-    document.body.setAttribute('data-theme', theme);
-  }, [theme]);
+    projectsRef.current = projects;
+  }, [projects]);
 
-  const showNotification = (msg) => {
-    setNotification(msg);
-    setTimeout(() => setNotification(null), 5000); 
-  };
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      setProjects(prevProjects => prevProjects.map(p => {
-        if (!p.deadline || p.reminded) return p;
-        const dueDate = new Date(p.deadline);
-        const diffDays = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
-
-        if (diffDays <= 3 && diffDays >= 0) {
-          showNotification(`⏰ <strong>Reminder:</strong> Project "${p.name}" is due in ${diffDays} day(s)!`);
-          return { ...p, reminded: true };
-        }
-        return p;
-      }));
-    }, 10000); 
-
-    return () => clearInterval(interval);
+    setIsMounted(true);
   }, []);
 
-  // --- ACTIONS WITH ACTIVITY LOGGING ---
+  useEffect(() => {
+    if (isMounted) {
+      document.body.setAttribute('data-theme', theme);
+      localStorage.setItem('prism_app_theme', theme);
+    }
+  }, [theme, isMounted]);
+
+  // AUTO-SAVE PROJECTS
+  useEffect(() => {
+    if (isMounted) {
+      localStorage.setItem('prism_app_projects', JSON.stringify(projects));
+    }
+  }, [projects, isMounted]);
+
+  // NOTIFICATION HANDLER
+  const showNotification = (msg) => {
+    setNotification(msg);
+    if (notificationTimerRef.current) {
+      clearTimeout(notificationTimerRef.current);
+    }
+    notificationTimerRef.current = setTimeout(() => setNotification(null), 5000); 
+  };
+
+  // --- DEADLINE CHECKER ---
+  useEffect(() => {
+    const checkDeadlines = () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const currentProjects = projectsRef.current;
+      
+      const projectsToRemind = currentProjects.filter(p => {
+        if (!p.deadline || remindedThisSessionRef.current.has(p.id)) return false;
+        
+        const dueDate = new Date(p.deadline);
+        const diffDays = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+        return diffDays <= 3 && diffDays >= 0;
+      });
+
+      if (projectsToRemind.length > 0) {
+        const messages = projectsToRemind.map(p => {
+          const dueDate = new Date(p.deadline);
+          const diffDays = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+          return `• <strong>${p.name}</strong> is due in ${diffDays} day(s)`;
+        });
+        
+        const finalMsg = `⏰ <strong>Deadline Reminder!</strong><br/>${messages.join('<br/>')}`;
+        showNotification(finalMsg);
+
+        projectsToRemind.forEach(p => remindedThisSessionRef.current.add(p.id));
+      }
+    };
+
+
+    if (isMounted) {
+      checkDeadlines(); 
+    }
+  }, [isMounted]); 
+
+
   const addProject = (name, deadline) => {
     const safeDeadline = normalizeDeadlineNotBeforeToday(deadline);
-    const newLog = { id: Date.now(), text: `Project created.`, date: new Date().toLocaleString() };
+    const newLog = { id: Date.now(), text: `Project created.`, date: new Date().toISOString() };
     setProjects((prev) => [
       ...prev,
       {
@@ -66,10 +125,36 @@ export const ProjectProvider = ({ children }) => {
     ]);
   };
 
+  // --- NEW: UPDATE DEADLINE ---
+  const updateProjectDeadline = (projectId, newDeadline) => {
+    setProjects(prev => prev.map(p => {
+      if (p.id !== projectId) return p;
+      
+      const oldDeadline = p.deadline;
+      const safeDeadline = normalizeDeadlineNotBeforeToday(newDeadline);
+      
+      const newLog = { 
+        id: Date.now(), 
+        text: `Project deadline updated from ${oldDeadline || 'None'} to ${safeDeadline}.`, 
+        date: new Date().toISOString() 
+      };
+
+      // Remove from reminded list so the notification can fire again if the new date is soon
+      remindedThisSessionRef.current.delete(p.id);
+
+      return { 
+        ...p, 
+        deadline: safeDeadline, 
+        reminded: false, 
+        activityLog: [newLog, ...(p.activityLog || [])] 
+      };
+    }));
+  };
+
   const addTask = (projectId, title, description) => {
     setProjects(prev => prev.map(p => {
       if (p.id !== projectId) return p;
-      const newLog = { id: Date.now(), text: `Task "${title}" was added.`, date: new Date().toLocaleString() };
+      const newLog = { id: Date.now(), text: `Task "${title}" was added.`, date: new Date().toISOString() };
       return { 
         ...p, 
         planning: [...p.planning, { id: `t${Date.now()}`, title, description, subtasks: [] }],
@@ -140,7 +225,7 @@ export const ProjectProvider = ({ children }) => {
 
       if (taskToMoveToDone) newP.done.push(taskToMoveToDone);
 
-      const newLog = { id: Date.now(), text: `Subtask "${subtaskText}" completed by ${userName}.`, date: new Date().toLocaleString() };
+      const newLog = { id: Date.now(), text: `Subtask "${subtaskText}" completed by ${userName}.`, date: new Date().toISOString() };
       newP.activityLog = [newLog, ...(p.activityLog || [])];
 
       return newP;
@@ -151,28 +236,67 @@ export const ProjectProvider = ({ children }) => {
     setProjects(prev => prev.map(p => {
       if (p.id !== projectId) return p;
       
-      const updateList = (list) => list.map(t => {
-        if (t.id !== taskId) return t;
-        const newSubtasks = [...t.subtasks];
-        newSubtasks[subtaskIndex].isCompleted = !newSubtasks[subtaskIndex].isCompleted;
-        
-        if (!newSubtasks[subtaskIndex].isCompleted) {
-            newSubtasks[subtaskIndex].completedBy = '';
-            newSubtasks[subtaskIndex].completedDate = '';
-        }
-        t.subtasks = newSubtasks;
-        return t;
-      });
+      let taskToMoveToProgress = null;
+      let subtaskText = '';
 
-      return { ...p, planning: updateList(p.planning), progress: updateList(p.progress), done: updateList(p.done) };
+      const updateList = (list, colName) => {
+        let result = [];
+        
+        for (const t of list) {
+          if (t.id === taskId) {
+            const updatedSubtasks = t.subtasks.map((st, i) => {
+              if (i === subtaskIndex) {
+                subtaskText = st.text;
+                return { ...st, isCompleted: !st.isCompleted }; 
+              }
+              return st;
+            });
+
+            const updatedTask = { ...t, subtasks: updatedSubtasks };
+
+            if (colName === 'done' && !updatedSubtasks[subtaskIndex].isCompleted) {
+              taskToMoveToProgress = updatedTask;
+            } else {
+              result.push(updatedTask);
+            }
+          } else {
+            result.push(t);
+          }
+        }
+        return result;
+      };
+
+      const newP = { 
+        ...p, 
+        planning: updateList(p.planning, 'planning'), 
+        progress: updateList(p.progress, 'progress'), 
+        done: updateList(p.done, 'done') 
+      };
+
+      if (taskToMoveToProgress) {
+        newP.progress.push(taskToMoveToProgress);
+      }
+
+      if (subtaskText) {
+        const newLog = { 
+          id: Date.now(), 
+          text: `Subtask "${subtaskText}" was marked incomplete.`, 
+          date: new Date().toISOString() 
+        };
+        newP.activityLog = [newLog, ...(p.activityLog || [])];
+      }
+
+      return newP;
     }));
   };
+
+  if (!isMounted) return null; 
 
   return (
     <ProjectContext.Provider value={{ 
       projects, activeProject, currentView, setCurrentView, setActiveProjectId, theme, setTheme, notification, 
       activeHistoryProjectId, setActiveHistoryProjectId, 
-      addProject, addTask, moveTask, addSubtask, completeSubtask, toggleSubtask
+      addProject, updateProjectDeadline, addTask, moveTask, addSubtask, completeSubtask, toggleSubtask
     }}>
       {children}
     </ProjectContext.Provider>

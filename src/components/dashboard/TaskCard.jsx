@@ -42,9 +42,14 @@ const TaskCard = ({ task, colId }) => {
                       {st.text}
                     </span>
                   </div>
-                  {st.isCompleted && st.completedBy && (
-                    <span style={{ fontSize: '12px', color: 'var(--text-sub)', marginLeft: '14px' }}>
-                      - done by <strong style={{color: 'var(--text-main)'}}>{st.completedBy}</strong> on {st.completedDate}
+                  {st.completedBy && (
+                    <span style={{ 
+                      fontSize: '12px', 
+                      color: 'var(--text-sub)', 
+                      marginLeft: '14px',
+                      fontStyle: st.isCompleted ? 'normal' : 'italic' 
+                    }}>
+                      - {st.isCompleted ? 'done by' : 'previously done by'} <strong style={{color: 'var(--text-main)'}}>{st.completedBy}</strong> on {st.completedDate}
                     </span>
                   )}
                 </div>

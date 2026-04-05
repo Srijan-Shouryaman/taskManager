@@ -403,3 +403,133 @@ body {
 .content-main {
   min-height: 0;
 }
+
+/* =========================================
+   TIMER WIDGET STYLES
+   ========================================= */
+
+.timer-widget {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  overflow: hidden;
+  transition: all 0.3s ease;
+  z-index: 1000;
+  width: auto;
+}
+
+.timer-widget.expanded {
+  width: 300px;
+}
+
+/* Header Area */
+.timer-header {
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-main);
+  border-bottom: none;
+}
+
+.timer-header.active {
+  background: var(--accent);
+  color: white;
+}
+
+.timer-header.expanded {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.timer-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.timer-time-display {
+  font-weight: bold;
+  font-size: 18px;
+  font-family: monospace;
+}
+
+.timer-status-text {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+/* Expanded Content Area */
+.timer-content {
+  padding: 20px;
+}
+
+.timer-mode-toggles {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  justify-content: center;
+}
+
+.timer-mode-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: 20px;
+  border: none;
+  cursor: pointer;
+  background: var(--bg-main);
+  color: var(--text-sub);
+  transition: all 0.2s ease;
+}
+
+.timer-mode-btn.active {
+  background: var(--accent);
+  color: white;
+}
+
+.timer-large-display {
+  text-align: center;
+  font-size: 48px;
+  font-weight: bold;
+  font-family: monospace;
+  color: var(--text-main);
+  margin-bottom: 20px;
+}
+
+/* Action Buttons (Start/Reset) */
+.timer-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.timer-action-btn {
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 16px;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.timer-start-btn {
+  flex: 2;
+  background: var(--accent);
+  color: white;
+}
+
+.timer-start-btn.running {
+  background: #ef4444; /* Red color for pause */
+}
+
+.timer-reset-btn {
+  flex: 1;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-main);
+}

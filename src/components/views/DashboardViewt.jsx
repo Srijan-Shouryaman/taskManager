@@ -11,7 +11,6 @@ const DashboardView = () => {
   return (
     <div className="view-container active">
       <h1 className="hero-title">🎯 {activeProject.name} Tasks</h1>
-      <p className="hero-sub">Sprint tracking and deployments.</p>
       <Board onAddTask={() => setShowModal(true)} />
       {showModal && <AddTaskModal onClose={() => setShowModal(false)} />}
     </div>
