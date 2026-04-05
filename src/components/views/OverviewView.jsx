@@ -47,7 +47,7 @@ const OverviewView = () => {
       <h1 className="hero-title">📊 Operations Overview</h1>
       <p className="hero-sub">High-level progress and urgent action items.</p>
 
-      <div className="board" style={{ paddingBottom: '0' }}>
+      <div className="board operations-overview" style={{ paddingBottom: '0' }}>
         <div className="column" style={{ flex: 1.5 }}>
           <div className="column-header">Active Projects</div>
           
